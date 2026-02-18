@@ -1,0 +1,571 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  CircularProgress,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContentText,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Avatar,
+  FormControlLabel,
+  Switch,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import VideoCameraBackIcon from "@mui/icons-material/VideoCameraBack";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DashboardCustomizeIcon from "@mui/icons-material/DashboardCustomize";
+import HomeFilledIcon from "@mui/icons-material/HomeFilled";
+import QrCode2Icon from "@mui/icons-material/QrCode2";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import PersonAddAlt1Icon from "@mui/icons-material/PersonAddAlt1";
+import Groups2Icon from "@mui/icons-material/Groups2";
+import CancelIcon from "@mui/icons-material/Cancel";
+
+import NodeAccordionTree from "@/components/NodeAccordionTree";
+import CMSForm from "@/components/CMSForm";
+import HomeVideoModal from "@/components/HomeVideoModal";
+import FullPageLoader from "@/components/FullPageLoader";
+import VVIPForm from "@/components/VVIPForm";
+import QRForm from "@/components/QRForm";
+
+export default function CMSPage() {
+  const [tree, setTree] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // node state
+  const [openForm, setOpenForm] = useState(false);
+  const [editNode, setEditNode] = useState(null);
+  const [parentNode, setParentNode] = useState(null);
+
+  // home video state
+  const [openHomeModal, setOpenHomeModal] = useState(false);
+  const [homeVideo, setHomeVideo] = useState(null);
+
+  // vvips state
+  const [vvips, setVvips] = useState([]);
+  const [openVvipModal, setOpenVvipModal] = useState(false);
+  const [editVvip, setEditVvip] = useState(null);
+  // qr state
+  const [qrCode, setQrCode] = useState(null);
+  const [openQrModal, setOpenQrModal] = useState(false);
+  // delete state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [nodeToDelete, setNodeToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    refreshAll();
+  }, []);
+
+  const fetchTree = async () => {
+    try {
+      const res = await fetch("/api/nodes/tree");
+      if (!res.ok) throw new Error(res.statusText);
+      return await res.json();
+    } catch (err) {
+      console.error("❌ fetchTree error:", err);
+      return [];
+    }
+  };
+
+  const fetchHomeVideo = async () => {
+    try {
+      const res = await fetch("/api/home");
+      if (!res.ok) throw new Error(res.statusText);
+      const data = await res.json();
+      return data.ok ? data.video : null;
+    } catch (err) {
+      console.error("❌ fetchHomeVideo error:", err);
+      return null;
+    }
+  };
+
+  const fetchVvips = async () => {
+    try {
+      const res = await fetch("/api/vvips");
+      if (!res.ok) throw new Error(res.statusText);
+      return await res.json();
+    } catch (err) {
+      console.error("❌ fetchVvips error:", err);
+      return [];
+    }
+  };
+
+  const fetchQR = async () => {
+    try {
+      const res = await fetch("/api/qr");
+      if (!res.ok) throw new Error(res.statusText);
+      return await res.json();
+    } catch (err) {
+      console.error("❌ fetchQR error:", err);
+      return null;
+    }
+  };
+
+  const refreshAll = async () => {
+    setLoading(true);
+    try {
+      const [treeData, homeData, vvipsData, qrData] = await Promise.all([
+        fetchTree(),
+        fetchHomeVideo(),
+        fetchVvips(),
+        fetchQR(),
+      ]);
+      setTree(treeData || []);
+      setHomeVideo(homeData || null);
+      setVvips(vvipsData || []);
+      setQrCode(qrData || null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Open delete confirmation
+  const handleDeleteClick = (item, type) => {
+    setNodeToDelete({ ...item, type });
+    setDeleteConfirmOpen(true);
+  };
+
+  // Confirm delete
+  const confirmDelete = async () => {
+    if (!nodeToDelete) return;
+    setDeleting(true);
+    try {
+      if (nodeToDelete.type === "agenda") {
+        const updatedItems = agenda.items.filter(
+          (it) => it._id !== nodeToDelete._id // 👈 delete by unique _id
+        );
+        const payload = { items: updatedItems };
+        await fetch(`/api/agenda/${agenda._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        setAgenda(await fetchAgenda());
+      } else if (nodeToDelete.type === "node") {
+        await fetch(`/api/nodes/${nodeToDelete._id}`, { method: "DELETE" });
+        setTree(await fetchTree());
+      } else if (nodeToDelete.type === "vvip") {
+        await fetch(`/api/vvips/${nodeToDelete._id}`, { method: "DELETE" });
+        setVvips(await fetchVvips());
+      }
+      setDeleteConfirmOpen(false);
+      setNodeToDelete(null);
+    } catch (err) {
+      console.error("❌ Delete error:", err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        p: 4,
+        backgroundColor: "#f9f9f9",
+        color: "#333",
+        minHeight: "100vh",
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+        <DashboardCustomizeIcon color="primary" />
+        <Typography variant="h4" sx={{ mb: 0 }}>
+          CMS - Manage Nodes, Agenda & VVIPs
+        </Typography>
+      </Stack>
+
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
+        <Button
+          variant="contained"
+          color="secondary"
+          startIcon={<VideoCameraBackIcon />}
+          onClick={() => setOpenHomeModal(true)}
+        >
+          Manage Home Video
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => {
+            setEditNode(null);
+            setParentNode(null);
+            setOpenForm(true);
+          }}
+        >
+          Create Node
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          startIcon={<QrCode2Icon />}
+          onClick={() => setOpenQrModal(true)}
+        >
+          {qrCode ? "Edit QR Code" : "Add QR Code"}
+        </Button>
+        <Button
+          variant="contained"
+          color="info"
+          startIcon={<PersonAddAlt1Icon />}
+          onClick={() => {
+            setEditVvip(null);
+            setOpenVvipModal(true);
+          }}
+        >
+          Add VVIP
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={refreshAll}
+        >
+          Refresh All
+        </Button>
+      </Stack>
+
+      {loading ? (
+        <FullPageLoader />
+      ) : (
+        <>
+          {/* Home Video */}
+          {homeVideo?.s3Url && (
+            <Box sx={{ mb: 3 }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <HomeFilledIcon fontSize="small" />
+                <Typography variant="h5">Home Video</Typography>
+              </Stack>
+              <video
+                src={homeVideo.s3Url}
+                controls
+                style={{ width: "100%", maxWidth: 200, borderRadius: 8 }}
+              />
+            </Box>
+          )}
+
+          {/* QR Code */}
+          {qrCode?.s3Url && (
+            <Box sx={{ mb: 4 }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <QrCode2Icon fontSize="small" />
+                <Typography variant="h5">QR Code</Typography>
+              </Stack>
+
+              <Paper
+                sx={{
+                  p: 2,
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  borderRadius: 2,
+                  backgroundColor: "#fff",
+                }}
+              >
+                {/* Left: QR Image */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <Avatar
+                    variant="rounded"
+                    src={qrCode.s3Url}
+                    alt="QR Code"
+                    sx={{
+                      width: 120,
+                      height: 120,
+                      border: "1px solid #ccc",
+                      bgcolor: "#fafafa",
+                    }}
+                  />
+                  <Box>
+                    <Typography variant="body1" fontWeight={600}>
+                      Uploaded QR
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ wordBreak: "break-all", maxWidth: 300 }}
+                    >
+                      {qrCode.s3Key}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Right: Config Details */}
+                <Box sx={{ textAlign: "right" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>X:</strong> {qrCode.x || 0}%
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Y:</strong> {qrCode.y || 0}%
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Width:</strong> {qrCode.width || 0}%
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Height:</strong> {qrCode.height || 0}%
+                  </Typography>
+                </Box>
+              </Paper>
+            </Box>
+          )}
+
+          {/* Nodes */}
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+            <AccountTreeIcon fontSize="small" />
+            <Typography variant="h5">Nodes</Typography>
+          </Stack>
+          <NodeAccordionTree
+            nodes={tree}
+            onEdit={(node) => {
+              setEditNode(node);
+              setOpenForm(true);
+            }}
+            onDelete={(node) => handleDeleteClick(node, "node", undefined)}
+            onAddChild={(node) => {
+              setParentNode(node);
+              setEditNode(null);
+              setOpenForm(true);
+            }}
+          />
+
+          {/* VVIPs */}
+          <Box sx={{ mt: 4 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+              <Groups2Icon fontSize="small" />
+              <Typography variant="h5">VVIPs</Typography>
+            </Stack>
+            {vvips.length > 0 ? (
+              vvips.map((vvip, idx) => {
+                const isPlaying = vvip.play;
+
+                return (
+                  <Paper
+                    key={vvip._id}
+                    sx={{
+                      p: 2,
+                      mb: 1.5,
+                      backgroundColor: isPlaying ? "#e3f2fd" : "#fff",
+                      border: isPlaying
+                        ? "2px solid #1976d2"
+                        : "1px solid #ccc",
+                      borderRadius: 2,
+                      position: "relative",
+                      boxShadow: isPlaying
+                        ? "0 0 12px rgba(25, 118, 210, 0.5)"
+                        : "none",
+                    }}
+                  >
+                    {/* PLAYING badge */}
+                    {isPlaying && (
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          top: 8,
+                          right: 8,
+                          bgcolor: "#1976d2",
+                          color: "white",
+                          fontSize: "0.7rem",
+                          fontWeight: "bold",
+                          px: 1.2,
+                          py: 0.3,
+                          borderRadius: 1,
+                          zIndex: 2,
+                          boxShadow: "0 0 8px rgba(0,0,0,0.2)",
+                        }}
+                      >
+                        PLAYING
+                      </Box>
+                    )}
+
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box>
+                          <Typography variant="h6">{vvip.name}</Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            {vvip.designation}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={vvip.play || false}
+                              onChange={async (e) => {
+                                const updated = vvips.map((v, i) => ({
+                                  ...v,
+                                  play: i === idx ? e.target.checked : false,
+                                }));
+
+                                await fetch(`/api/vvips/${vvip._id}`, {
+                                  method: "PUT",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    play: e.target.checked,
+                                  }),
+                                });
+
+                                setVvips(updated);
+                              }}
+                            />
+                          }
+                          label="Play"
+                        />
+
+                        <IconButton
+                          color="primary"
+                          onClick={() => {
+                            setEditVvip(vvip);
+                            setOpenVvipModal(true);
+                          }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDeleteClick(vvip, "vvip", idx)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
+
+                    {vvip.video?.s3Url && (
+                      <video
+                        src={vvip.video.s3Url}
+                        controls
+                        style={{ marginTop: 8, maxWidth: 150, borderRadius: 6 }}
+                      />
+                    )}
+                  </Paper>
+                );
+              })
+            ) : (
+              <Typography>No VVIPs yet.</Typography>
+            )}
+          </Box>
+        </>
+      )}
+
+      {/* Node Form */}
+      {openForm && (
+        <Dialog
+          open={openForm}
+          onClose={() => setOpenForm(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            {editNode ? `Edit Node: ${editNode.title}` : "Create New Node"}
+          </DialogTitle>
+          <DialogContent dividers>
+            <CMSForm
+              onClose={() => setOpenForm(false)}
+              onCreated={refreshAll}
+              initialData={editNode}
+              parent={parentNode?._id}
+              allNodes={tree}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* VVIP Form */}
+      {openVvipModal && (
+        <Dialog
+          open={openVvipModal}
+          onClose={() => setOpenVvipModal(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            {editVvip ? `Edit VVIP: ${editVvip.name}` : "Add VVIP"}
+          </DialogTitle>
+          <DialogContent dividers>
+            <VVIPForm
+              onClose={() => setOpenVvipModal(false)}
+              onCreated={refreshAll}
+              initialData={editVvip}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {openQrModal && (
+        <Dialog
+          open={openQrModal}
+          onClose={() => setOpenQrModal(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>{qrCode ? "Edit QR Code" : "Add QR Code"}</DialogTitle>
+          <DialogContent dividers>
+            <QRForm
+              onClose={() => setOpenQrModal(false)}
+              onCreated={refreshAll}
+              initialData={qrCode}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Confirmation */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => !deleting && setDeleteConfirmOpen(false)}
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete{" "}
+            <strong>{nodeToDelete?.name || nodeToDelete?.title}</strong>?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setDeleteConfirmOpen(false)}
+            disabled={deleting}
+            startIcon={<CancelIcon />}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDelete}
+            color="error"
+            variant="contained"
+            disabled={deleting}
+          >
+            {deleting ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              "Delete"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modals */}
+      {openHomeModal && (
+        <HomeVideoModal
+          open={openHomeModal}
+          onClose={() => setOpenHomeModal(false)}
+          onUploaded={refreshAll}
+        />
+      )}
+    </Box>
+  );
+}
