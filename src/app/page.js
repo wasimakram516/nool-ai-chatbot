@@ -680,7 +680,7 @@ export default function HomePage() {
           }}
         >
           <img
-            src="/OCI.png"
+            src="/Nool-logo.png"
             alt="Nool AI ChatBot by WhiteWall Digital Solutions"
             style={{
               width: "50vw",
