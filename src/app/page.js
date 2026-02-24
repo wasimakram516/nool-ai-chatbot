@@ -812,8 +812,8 @@ export default function HomePage() {
                   cursor: "pointer",
                   textShadow: "0px 2px 5px rgba(0,0,0,0.9)",
                   background: currentNode
-                    ? "radial-gradient(circle at 30% 30%, #FFD54F, #FF9800)" // child color
-                    : "radial-gradient(circle at 30% 30%, #7BBE3A, #006838)", // parent
+                    ? "radial-gradient(circle at 30% 30%, #4CCBC4, #00A39A)" // sub mode
+                    : "radial-gradient(circle at 30% 30%, #E89470, #D46C41)", // current model
                   color: "#fff",
                   border: currentNode
                     ? "2px solid #fff3e0"
@@ -825,8 +825,8 @@ export default function HomePage() {
       `,
                   "&:hover": {
                     background: currentNode
-                      ? "radial-gradient(circle at 30% 30%, #FFEB3B, #FB8C00)"
-                      : "radial-gradient(circle at 30% 30%, #8ed44a, #007a44)",
+                      ? "radial-gradient(circle at 30% 30%, #66D6D0, #009087)"
+                      : "radial-gradient(circle at 30% 30%, #F0A583, #C45F35)",
                     transform: "scale(1.05)",
                   },
                   "&.clicked": {
